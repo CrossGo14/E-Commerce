@@ -1,9 +1,10 @@
 import { createContext, useEffect, useState } from "react";
-import { products } from "../assets/assets";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 export const ShopContext = createContext();
+export const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 const ShopContextProvider = (props) => {
   const currency = "₹";
@@ -12,6 +13,8 @@ const ShopContextProvider = (props) => {
   const [showSearch, setShowSearch] = useState(false);
   const [cartItems, setCartItems] = useState({});
   const navigate = useNavigate();
+  const [products, setProducts] = useState([]);
+  const [token, setToken] = useState("");
 
   const addToCart = async (itemId, size) => {
     let cartData = structuredClone(cartItems);
@@ -32,6 +35,21 @@ const ShopContextProvider = (props) => {
       cartData[itemId][size] = 1;
     }
     setCartItems(cartData);
+
+    //this is used to notify that if the user has token then it will run/hit the ednpoint
+    //given there and will add the product
+    if (token) {
+      try {
+        await axios.post(
+          backendUrl + "/api/cart/add",
+          { itemId, size },
+          { headers: { token } }
+        );
+      } catch (error) {
+        console.log(error);
+        toast.error(error.message);
+      }
+    }
   };
 
   const getCartCount = () => {
@@ -54,11 +72,36 @@ const ShopContextProvider = (props) => {
     console.log(cartItems);
   }, [cartItems]);
 
+  //used to update the quantitya as well a delteion of the cart
+  //this is bieng called in the cart.jsx
   const updateQuantity = async (itemId, size, quantity) => {
     let cartData = structuredClone(cartItems);
-    cartData[itemId][size] = quantity;
+
+    // If quantity is 0, remove the size or entire item
+    if (quantity === 0) {
+      delete cartData[itemId][size];
+      if (Object.keys(cartData[itemId]).length === 0) {
+        delete cartData[itemId];
+      }
+    } else {
+      cartData[itemId][size] = quantity;
+    }
 
     setCartItems(cartData);
+
+    // 🔥 Sync with backend
+    if (token) {
+      try {
+        await axios.post(
+          backendUrl + "/api/cart/update",
+          { itemId, size, quantity },
+          { headers: { token } }
+        );
+      } catch (error) {
+        console.log(error);
+        toast.error("Failed to update cart in backend.");
+      }
+    }
   };
 
   const getCartAmount = () => {
@@ -78,6 +121,52 @@ const ShopContextProvider = (props) => {
     return totalAmount;
   };
 
+  const getProductData = async () => {
+    try {
+      const response = await axios.get(backendUrl + "/api/product/list");
+      if (response.data.success) {
+        setProducts(response.data.products);
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+      console.log(error);
+    }
+  };
+
+  const getUserCart = async (token) => {
+    try {
+      const response = await axios.post(
+        backendUrl + "/api/cart/get",
+        {},
+        { headers: { token } }
+      );
+      if (response.data.success) {
+        setCartItems(response.data.cartData);
+      }
+    } catch (error) {
+      toast.error(error.message);
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    getProductData();
+  }, []);
+
+  //wiht the help of this,if we are in home page validated, we will not got to
+  //login page, cuz here it is checking if it if token is not there but there in the local storeage
+  //then it will setTOken which is in the local storage and thus this will be passsedd
+  //to the login page and will keep us there 9:50:55 min cideo
+  //login:50 line
+  useEffect(() => {
+    if (!token && localStorage.getItem("token")) {
+      setToken(localStorage.getItem("token"));
+      getUserCart(localStorage.getItem("token"));
+    }
+  }, []);
+
   const value = {
     products,
     currency,
@@ -92,6 +181,10 @@ const ShopContextProvider = (props) => {
     updateQuantity,
     getCartAmount,
     navigate,
+    backendUrl,
+    setToken,
+    token,
+    setCartItems,
   };
 
   return (

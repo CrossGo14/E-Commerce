@@ -4,15 +4,18 @@ import Sidebar from "./components/Sidebar";
 import { Routes, Route } from "react-router-dom";
 import Add from "./pages/add";
 import List from "./pages/list";
-import Orders from "./pages/orders";
+import Orders from "./pages/Orders";
 import Login from "./components/Login";
 import { ToastContainer, toast } from "react-toastify";
 
 export const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
+export const currency = "₹";
+
 const App = () => {
   const [token, setToken] = useState(localStorage.getItem("token") || "");
 
+  //we set the token to the local storage which allows us to stay logged in until we log out
   useEffect(() => {
     localStorage.setItem("token", token);
   }, [token]);

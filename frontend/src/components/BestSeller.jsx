@@ -10,7 +10,7 @@ const BestSeller = () => {
   useEffect(() => {
     const bestproduct = products.filter((item) => item.bestseller);
     setBestSeller(bestproduct.slice(0, 5));
-  }, []);
+  }, [products]);
 
   return (
     <div className="my-10">
